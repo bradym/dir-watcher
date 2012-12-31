@@ -7,12 +7,22 @@
 require 'rubygems'
 require 'listen'
 require 'yaml'
+require 'trollop'
 
 trap("SIGINT") {
   exit!
 }
 
-config = YAML.load_file('config.yaml')
+opts = Trollop::options do
+  opt :config, "The config file to use", :default => "#{Dir.home}/.watcher.yaml"
+end
+
+
+if File.exist?(opts[:config])
+  config = YAML.load_file(opts[:config])
+else
+  abort("No config file specified, or file does not exist.")
+end
 
 def validateJob(job)
   # Check that a directory was specified
@@ -30,50 +40,30 @@ config["jobs"].each do |key, job|
 
   validateJob(job)
 
-  # Set options for the watcher
   options = {
-    :filter                   => job["filter"].nil? ? nil : Regexp.new(job["filter"]),
-    :ignore                   => job["ignore"].nil? ? nil : Regexp.new(job["ignore"]),
-    :relative_paths           => job["relative_paths"].nil? ? false : job["relative_paths"]
-  }
+      :filter                   => job["filter"].nil? ? nil : Regexp.new(job["filter"]),
+      :ignore                   => job["ignore"].nil? ? nil : Regexp.new(job["ignore"]),
+      :relative_paths           => job["relative_paths"].nil? ? false : job["relative_paths"]
+  }.reject{|key, value| value.nil?}
 
-  unless config["generic"].nil?
-    options[:polling_fallback_message] = config["generic"]["polling_message"].nil? ? false : config["generic"]["polling_message"]
-    options[:latency]                  = config["generic"]["latency"].nil? ? 0.25 : config["generic"]["latency"]
-    options[:force_polling]            = config["generic"]["force_polling"].nil? ? false : config["generic"]["force_polling"]
-  end
-
-  # filter out nil values
-  options = options.reject{|key, value| value.nil?}
 
   Listen.to(job["directory"], options) do |modified, added, removed|
 
-    action = nil
-    file   = nil
+    event = {:modified => modified, :added => added, :removed => removed}.reject{|key,value| value.empty?}
 
-    unless modified.nil? || modified.empty?
-      action = "modified"
-      file   = modified
-    end
-
-    unless added.nil? || added.empty?
-      action = "added"
-      file   = added
-    end
-
-    unless removed.nil? || removed.empty?
-      action = "removed"
-      file   = removed
-    end
+    action = event.keys.first.to_s
+    file   = event.values.first
 
     if job["command"].is_a? Hash
       unless job["command"][action].nil?
-        system job["command"][action]
+        command = job["command"][action]
       end
     else
       if job["command"].is_a? String
-        system job["command"]
+        command = job["command"]
       end
     end
+
+    system command
   end
 end
