@@ -1,0 +1,15 @@
+jobs:
+#  job1:
+#    directory: /tmp/watcher
+##    filter: .rst
+#    ignore: ^abc.rst$
+#    relative_paths: true
+#    command:
+#      modified: "growlnotify -t modified -m message"
+#      added:  "growlnotify -t added -m message"
+#      removed:  "growlnotify -t removed -m message"
+#    command: "growlnotify -t generic -m message"
+  job2:
+    directory: /tmp/watcher2
+    command: "/Users/bradym/Sites/giventree/application/third_party/lessphp/plessc project.less project.css"
+#    command: "growlnotify -t something -m happened"
